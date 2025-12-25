@@ -41,7 +41,27 @@ func main() {
 	switchHTTPClient := switchhttp.NewSwitchClient("http://192.168.1.94", "admin", "admin")
 
 	// Switch z 4 portami
-	switches := switchpkg.NewSwitch(4, switchHTTPClient)
+	switches := switchpkg.NewSwitch(8, switchHTTPClient)
+
+	// --- Przy starcie pobieramy stan PoE ---
+	states, err := switchHTTPClient.GetPoEStates(8) // liczba portów
+	if err != nil {
+		logger.WithError(err).Warn("⚠️ Nie udało się pobrać stanu PoE z switcha")
+	} else {
+		for i, enabled := range states {
+			portID := i + 1
+			switches.Ports[portID].Enabled = enabled
+			stateTopic := fmt.Sprintf("dom/switch1/port%d/poe/state", portID)
+			var state string
+			if enabled {
+				state = "ON"
+			} else {
+				state = "OFF"
+			}
+			broker.Publish(stateTopic, []byte(state))
+			logger.Infof("Initial state port %d: %s", portID, state)
+		}
+	}
 
 	// Subskrypcja topiców MQTT
 	if err := broker.Subscribe(topic, func(topic string, payload []byte) {
@@ -57,12 +77,6 @@ func main() {
 		}
 	}); err != nil {
 		logger.Fatal(err)
-	}
-
-	// Początkowy stan wszystkich portów
-	for i := 1; i <= 4; i++ {
-		stateTopic := fmt.Sprintf("dom/switch1/port%d/poe/state", i)
-		broker.Publish(stateTopic, []byte("OFF"))
 	}
 
 	// Graceful shutdown
