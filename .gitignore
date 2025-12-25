@@ -8,6 +8,9 @@
 *.so
 *.dylib
 
+#custom binaries
+poe-mqtt-bridge
+
 # Test binary, built with `go test -c`
 *.test
 
