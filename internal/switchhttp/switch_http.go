@@ -4,6 +4,7 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 	"fmt"
+	"log"
 	"math"
 	"net/http"
 	"net/url"
@@ -13,6 +14,7 @@ import (
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
+	config "github.com/adamchabin/cheap-switch-mqtt-broker/internal/config"
 	sw "github.com/adamchabin/cheap-switch-mqtt-broker/internal/switchpkg"
 )
 
@@ -107,6 +109,11 @@ func (s *SwitchClient) GetPoEPorts(numPorts int) ([]*sw.Port, error) {
 	ports := make([]*sw.Port, numPorts)
 
 	doc.Find("table tr").Each(func(i int, tr *goquery.Selection) {
+
+		if config.Debug {
+			log.Printf("Petla: %d", i)
+		}
+
 		if i == 0 { // nagłówek
 			return
 		}
@@ -117,8 +124,16 @@ func (s *SwitchClient) GetPoEPorts(numPorts int) ([]*sw.Port, error) {
 		}
 
 		portText := strings.TrimSpace(tds.Eq(0).Text())
-		portID, err := strconv.Atoi(strings.TrimPrefix(portText, "Port "))
-		if err != nil || portID < 1 || portID > numPorts {
+		portText = strings.TrimPrefix(portText, "Port ")
+		portID, err := strconv.Atoi(portText)
+
+		if err != nil {
+			log.Printf("Nieprawidłowy numer portu: %q", portText)
+			return
+		}
+
+		if portID < 1 || portID > numPorts {
+			log.Printf("Port ID %d poza zakresem", portID)
 			return
 		}
 

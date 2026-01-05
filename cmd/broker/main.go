@@ -4,51 +4,34 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
-	"strconv"
 	"syscall"
 
+	config "github.com/adamchabin/cheap-switch-mqtt-broker/internal/config"
 	"github.com/adamchabin/cheap-switch-mqtt-broker/internal/mqtt"
 	switchhttp "github.com/adamchabin/cheap-switch-mqtt-broker/internal/switchhttp"
 	switchpkg "github.com/adamchabin/cheap-switch-mqtt-broker/internal/switchpkg"
 	"github.com/sirupsen/logrus"
 )
 
-func getEnv(key, fallback string) string {
-	if v, ok := os.LookupEnv(key); ok {
-		return v
-	}
-	return fallback
-}
+// var DEBUG string = getEnv("DEBUG", "0")
 
 func main() {
 	logger := logrus.New()
 	logger.SetFormatter(&logrus.JSONFormatter{})
 	logger.SetLevel(logrus.InfoLevel)
 
-	// ENV
-	brokerURL := getEnv("MQTT_BROKER", "tcp://localhost:1883")
-	username := getEnv("MQTT_USERNAME", "")
-	password := getEnv("MQTT_PASSWORD", "")
-	clientID := getEnv("MQTT_CLIENT_ID", "cheap-switch-mqtt-bridge")
-	topic := getEnv("MQTT_TOPIC", "dom/switch1/#")
-
-	switchURL := getEnv("SWITCH_URL", "http://127.0.0.1")
-	switchUsername := getEnv("SWITCH_USERNAME", "admin")
-	switchPassword := getEnv("SWITCH_PASSWORD", "admin")
-	switchPortNumber, err := strconv.Atoi(getEnv("SWITCH_PORT_NUMBER", "8"))
-
 	// MQTT
-	broker := mqtt.NewBroker(brokerURL, username, password, clientID, logger)
+	broker := mqtt.NewBroker(config.BrokerURL, config.Username, config.Password, config.ClientID, logger)
 	if err := broker.Connect(); err != nil {
 		logger.Fatal(err)
 	}
 
 	// Switch HTTP
-	switchHTTPClient := switchhttp.NewSwitchClient(switchURL, switchUsername, switchPassword)
-	sw := switchpkg.NewSwitch(switchPortNumber, switchHTTPClient)
+	switchHTTPClient := switchhttp.NewSwitchClient(config.SwitchURL, config.SwitchUsername, config.SwitchPassword)
+	sw := switchpkg.NewSwitch(config.SwitchPortNumber, switchHTTPClient)
 
 	// --- Przy starcie pobieramy stan PoE ---
-	states, err := switchHTTPClient.GetPoEStates(switchPortNumber)
+	states, err := switchHTTPClient.GetPoEStates(config.SwitchPortNumber)
 	if err != nil {
 		logger.WithError(err).Warn("⚠️ Nie udało się pobrać stanu PoE z switcha")
 	} else {
@@ -101,7 +84,7 @@ func main() {
 	}
 
 	// Subskrypcja topiców MQTT
-	if err := broker.Subscribe(topic, func(topic string, payload []byte) {
+	if err := broker.Subscribe(config.MqttTopic, func(topic string, payload []byte) {
 		portID, ok := switchpkg.ParseTopic(topic)
 		if !ok {
 			logger.WithField("topic", topic).Debug("📌 Ignorowany topic (nie SET)")
