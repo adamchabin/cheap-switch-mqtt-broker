@@ -40,6 +40,7 @@ func (b *Broker) Connect() error {
 func (b *Broker) Disconnect() {
 	if b.client != nil && b.client.IsConnected() {
 		b.client.Disconnect(250)
+		b.logger.Info("🛑 Disconnected from MQTT broker")
 	}
 }
 
@@ -56,6 +57,7 @@ func (b *Broker) Subscribe(topic string, handler func(topic string, payload []by
 }
 
 func (b *Broker) Publish(topic string, payload []byte) {
-	token := b.client.Publish(topic, 0, false, payload)
-	token.WaitTimeout(2 * time.Second)
+	b.logger.Debugf("🖌️ Publish to topic: %s", topic)
+	token := b.client.Publish(topic, 0, true, payload)
+	token.WaitTimeout(1 * time.Second)
 }

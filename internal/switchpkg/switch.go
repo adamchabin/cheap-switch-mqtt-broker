@@ -27,6 +27,8 @@ type Port struct {
 	PowerOn bool
 	Class   string
 	Stats   *PoEStats
+	// dodajemy to pole do śledzenia ostatniego stanu MQTT
+	LastPublishedState string
 }
 
 // PoEStats przechowuje wartości mocy, napięcia i prądu portu w jednostkach mW, mV, mA.
@@ -71,6 +73,11 @@ func (s *Switch) HandlePoECommand(portID int, payload string, logger *logrus.Log
 		return false
 	}
 
+	// --- Nowość: jeśli stan się nie zmienił, nic nie robimy ---
+	if p.Enabled == enable {
+		return false
+	}
+
 	// Wywołanie HTTP do switcha poprzez interfejs
 	if s.HTTP != nil {
 		if err := s.HTTP.SetPoE(portID-1, enable); err != nil {
@@ -79,6 +86,7 @@ func (s *Switch) HandlePoECommand(portID int, payload string, logger *logrus.Log
 		}
 	}
 
+	// Aktualizacja stanu w pamięci
 	p.Enabled = enable
 	if enable {
 		logger.WithField("port", portID).Info("🔌 PoE włączone")
@@ -122,4 +130,3 @@ func (s *Switch) SetPort(portID int, port *Port) {
 	}
 	s.Ports[portID] = port
 }
-
