@@ -15,11 +15,12 @@ func getEnv(key, defaultValue string) string {
 
 // Eksportowana zmienna globalna
 var Debug bool
+
 var BrokerURL string = getEnv("MQTT_BROKER", "tcp://localhost:1883")
-var Username string = getEnv("MQTT_USERNAME", "")
-var Password string = getEnv("MQTT_PASSWORD", "")
-var ClientID string = getEnv("MQTT_CLIENT_ID", "cheap-switch-mqtt-bridge")
-var MqttTopic string = getEnv("MQTT_TOPIC", "dom/switch1/#")
+var BrokerUsername string = getEnv("MQTT_USERNAME", "")
+var BrokerPassword string = getEnv("MQTT_PASSWORD", "")
+var BrokerClientID string = getEnv("MQTT_CLIENT_ID", "cheap-switch-mqtt-bridge")
+var BrokerTopic string = getEnv("MQTT_TOPIC", "dom/switch1/#")
 
 var SwitchURL string = getEnv("SWITCH_URL", "http://127.0.0.1")
 var SwitchUsername string = getEnv("SWITCH_USERNAME", "admin")

@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
-	config "github.com/adamchabin/cheap-switch-mqtt-broker/internal/config"
 	sw "github.com/adamchabin/cheap-switch-mqtt-broker/internal/switchpkg"
 )
 
@@ -110,9 +109,9 @@ func (s *SwitchClient) GetPoEPorts(numPorts int) ([]*sw.Port, error) {
 
 	doc.Find("table tr").Each(func(i int, tr *goquery.Selection) {
 
-		if config.Debug {
-			log.Printf("Petla: %d", i)
-		}
+		// if config.Debug {
+		// 	log.Printf("Petla: %d", i)
+		// }
 
 		if i == 0 { // nagłówek
 			return
@@ -173,20 +172,20 @@ func (s *SwitchClient) GetPoEPorts(numPorts int) ([]*sw.Port, error) {
 }
 
 // GetPoEStates zwraca tylko slice bool, kompatybilne z PoEHTTPClient
-func (s *SwitchClient) GetPoEStates(numPorts int) ([]bool, error) {
-	ports, err := s.GetPoEPorts(numPorts)
-	if err != nil {
-		return nil, err
-	}
+// func (s *SwitchClient) GetPoEStates(numPorts int) ([]bool, error) {
+// 	ports, err := s.GetPoEPorts(numPorts)
+// 	if err != nil {
+// 		return nil, err
+// 	}
 
-	states := make([]bool, numPorts)
-	for i, port := range ports {
-		if port != nil {
-			states[i] = port.PowerOn
-		}
-	}
-	return states, nil
-}
+// 	states := make([]bool, numPorts)
+// 	for i, port := range ports {
+// 		if port != nil {
+// 			states[i] = port.PowerOn
+// 		}
+// 	}
+// 	return states, nil
+// }
 
 // getMD5Hash zwraca MD5 w formacie hex
 func getMD5Hash(s string) string {

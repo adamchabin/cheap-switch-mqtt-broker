@@ -11,7 +11,6 @@ import (
 // Dzięki temu switchpkg nie importuje switchhttp i nie tworzy cyklu.
 type PoEHTTPClient interface {
 	SetPoE(portID int, enable bool) error
-	GetPoEStates(numPorts int) ([]bool, error)
 }
 
 // Switch reprezentuje przełącznik z portami PoE.
@@ -27,7 +26,7 @@ type Port struct {
 	Enabled bool
 	PowerOn bool
 	Class   string
-	Stats   *PoEStats // nil jeśli brak danych
+	Stats   *PoEStats
 }
 
 // PoEStats przechowuje wartości mocy, napięcia i prądu portu w jednostkach mW, mV, mA.
@@ -124,18 +123,3 @@ func (s *Switch) SetPort(portID int, port *Port) {
 	s.Ports[portID] = port
 }
 
-func (s *Switch) UpdatePoEStates(client PoEHTTPClient) error {
-	states, err := client.GetPoEStates(len(s.Ports))
-	if err != nil {
-		return err
-	}
-
-	for i, powerOn := range states {
-		p := s.Ports[i+1] // portID od 1
-		if p != nil {
-			p.PowerOn = powerOn
-		}
-	}
-
-	return nil
-}
