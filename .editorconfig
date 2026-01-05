@@ -1,0 +1,28 @@
+# EditorConfig dla projektów Go
+root = true
+
+# Domyślne ustawienia dla wszystkich plików
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+# Pliki Go
+[*.go]
+indent_style = tab
+indent_size = tab
+
+# Pliki modułów Go
+[go.mod]
+indent_style = space
+indent_size = 2
+
+[go.sum]
+indent_style = space
+indent_size = 2
+
+# Pliki tekstowe / dokumentacja
+[*.{md,txt}]
+indent_style = space
+indent_size = 2
