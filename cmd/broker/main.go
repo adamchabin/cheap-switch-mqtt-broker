@@ -8,7 +8,7 @@ import (
 	"time"
 
 	config "github.com/adamchabin/cheap-switch-mqtt-broker/internal/config"
-	"github.com/adamchabin/cheap-switch-mqtt-broker/internal/mqtt"
+	mqtt "github.com/adamchabin/cheap-switch-mqtt-broker/internal/mqtt"
 	switchhttp "github.com/adamchabin/cheap-switch-mqtt-broker/internal/switchhttp"
 	sw "github.com/adamchabin/cheap-switch-mqtt-broker/internal/switchpkg"
 	"github.com/sirupsen/logrus"
@@ -99,9 +99,33 @@ func main() {
 
 		for range ticker.C {
 			logger.Debugf("Getting PoE ports status via HTTP...")
-			ports, err := switchHTTPClient.GetPoEPorts(config.SwitchPortNumber)
+
+			var err error
+			maxRetries := 10
+
+			for i := 0; i < maxRetries; i++ {
+				ports, err = switchHTTPClient.GetPoEPorts(config.SwitchPortNumber)
+				if err == nil {
+					break // udało się pobrać porty
+				}
+
+				logger.Warnf(
+					"Błąd pobierania portów PoE, próba %d/%d",
+					i+1,
+					maxRetries,
+				)
+				// reconnect
+				switchHTTPClient = switchhttp.NewSwitchClient(
+					config.SwitchURL,
+					config.SwitchUsername,
+					config.SwitchPassword,
+				)
+
+				time.Sleep(1 * time.Second)
+			}
+
 			if err != nil {
-				logger.WithError(err).Error("Błąd pobierania portów PoE")
+				logger.WithError(err).Error("Nie udało się pobrać portów PoE po kilku próbach")
 				continue
 			}
 
@@ -122,7 +146,6 @@ func main() {
 
 				// --- Sprawdzenie, które pola się zmieniły ---
 				if oldPort.Enabled != port.Enabled || oldPort.PowerOn != port.PowerOn {
-					// logujemy tylko zmiany stanu
 					logger.Infof(
 						"Port %d: Enabled=%t, PoE=%t, Class=%s, Power=%dmW, Voltage=%dmV, Current=%dmA",
 						port.ID,
@@ -152,7 +175,6 @@ func main() {
 						broker.Publish(fmt.Sprintf("%s/port%d/poe/class", config.BrokerTopic, port.ID), []byte(port.Class))
 					}
 				} else if oldPort.Stats != port.Stats {
-					// jeden z portów ma nil Stats → publikujemy wszystko
 					publishPortValues(port, swClient, broker, config.BrokerTopic, logger)
 				}
 			}

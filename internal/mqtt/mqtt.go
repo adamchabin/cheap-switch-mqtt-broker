@@ -3,6 +3,7 @@ package mqtt
 import (
 	"time"
 
+	"github.com/adamchabin/cheap-switch-mqtt-broker/internal/config"
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"github.com/sirupsen/logrus"
 )
@@ -33,7 +34,7 @@ func (b *Broker) Connect() error {
 	if token.Error() != nil {
 		return token.Error()
 	}
-	b.logger.Info("✅ Connected to MQTT broker")
+	b.logger.Infof("✅ Connected to MQTT broker: %s", config.BrokerURL)
 	return nil
 }
 
