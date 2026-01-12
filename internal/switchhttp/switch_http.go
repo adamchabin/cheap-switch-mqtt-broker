@@ -32,7 +32,7 @@ func NewSwitchClient(baseURL, username, password string) *SwitchClient {
 	}
 }
 
-// SetPoE ustawia port PoE włączony/wyłączony
+// SetPoE sets the PoE port on or off
 func (s *SwitchClient) SetPoE(portID int, enable bool) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -75,7 +75,7 @@ func (s *SwitchClient) SetPoE(portID int, enable bool) error {
 	return nil
 }
 
-// GetPoEPorts zwraca pełne informacje o wszystkich portach
+// GetPoEPorts returns full information about all ports
 func (s *SwitchClient) GetPoEPorts(numPorts int) ([]*sw.Port, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -108,12 +108,7 @@ func (s *SwitchClient) GetPoEPorts(numPorts int) ([]*sw.Port, error) {
 	ports := make([]*sw.Port, numPorts)
 
 	doc.Find("table tr").Each(func(i int, tr *goquery.Selection) {
-
-		// if config.Debug {
-		// 	log.Printf("Petla: %d", i)
-		// }
-
-		if i == 0 { // nagłówek
+		if i == 0 {
 			return
 		}
 
@@ -127,12 +122,12 @@ func (s *SwitchClient) GetPoEPorts(numPorts int) ([]*sw.Port, error) {
 		portID, err := strconv.Atoi(portText)
 
 		if err != nil {
-			log.Printf("Nieprawidłowy numer portu: %q", portText)
+			log.Printf("Invalid port number: %q", portText)
 			return
 		}
 
 		if portID < 1 || portID > numPorts {
-			log.Printf("Port ID %d poza zakresem", portID)
+			log.Printf("Port ID %d out of range", portID)
 			return
 		}
 
@@ -171,23 +166,7 @@ func (s *SwitchClient) GetPoEPorts(numPorts int) ([]*sw.Port, error) {
 	return ports, nil
 }
 
-// GetPoEStates zwraca tylko slice bool, kompatybilne z PoEHTTPClient
-// func (s *SwitchClient) GetPoEStates(numPorts int) ([]bool, error) {
-// 	ports, err := s.GetPoEPorts(numPorts)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-
-// 	states := make([]bool, numPorts)
-// 	for i, port := range ports {
-// 		if port != nil {
-// 			states[i] = port.PowerOn
-// 		}
-// 	}
-// 	return states, nil
-// }
-
-// getMD5Hash zwraca MD5 w formacie hex
+// getMD5Hash returns the MD5 hash as a hex string
 func getMD5Hash(s string) string {
 	hash := md5.Sum([]byte(s))
 	return hex.EncodeToString(hash[:])
@@ -195,6 +174,6 @@ func getMD5Hash(s string) string {
 
 func cleanText(s string) string {
 	s = strings.TrimSpace(s)
-	s = strings.ReplaceAll(s, "\u00a0", "") // usuń niełamliwe spacje
+	s = strings.ReplaceAll(s, "\u00a0", "") // remove non-breaking spaces
 	return s
 }

@@ -13,7 +13,6 @@ func getEnv(key, defaultValue string) string {
 	return defaultValue
 }
 
-// Eksportowana zmienna globalna
 var Debug bool
 
 var BrokerURL string = getEnv("MQTT_BROKER", "tcp://localhost:1883")
@@ -31,11 +30,10 @@ func init() {
 	var err error
 	SwitchPortNumber, err = strconv.Atoi(getEnv("SWITCH_PORT_NUMBER", "8"))
 	if err != nil {
-		// log.Printf("Nieprawidłowa wartość SWITCH_PORT_NUMBER, ustawiam domyślnie 8")
 		SwitchPortNumber = 8
 	}
 	val := getEnv("DEBUG", "0")
 
-	Debug = val == "1" // jeśli DEBUG="1", to true, inaczej false
+	Debug = val == "1"
 	log.Printf("DEBUG mode: %v", Debug)
 }
