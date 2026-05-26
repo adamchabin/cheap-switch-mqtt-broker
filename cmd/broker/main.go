@@ -38,43 +38,42 @@ func main() {
 
 	swClient := sw.NewSwitch(config.SwitchPortNumber, switchHTTPClient)
 
-	// --- Początkowy stan portów ---
+	// --- Initial port state ---
 	ports, err := switchHTTPClient.GetPoEPorts(config.SwitchPortNumber)
 	if err != nil {
-		logger.WithError(err).Fatal("Nie udało się pobrać portów PoE")
+		logger.WithError(err).Fatal("Failed to retrieve PoE ports")
 	}
 
-	// Mapa stanu portów (ID -> Port)
+	// Map of port states (ID -> Port)
 	portState := make(map[int]*sw.Port)
 
 	for _, port := range ports {
 		if port != nil {
 			swClient.SetPort(port.ID, port)
 			portState[port.ID] = port
-			// logAndPublishPort(port, swClient, broker, config.BrokerTopic, logger)
 		}
 	}
 
-	// --- Subskrypcja topiców MQTT ---
+	// --- MQTT topic subscription ---
 	subscribeTopic := config.BrokerTopic + "/#"
 	if err := broker.Subscribe(subscribeTopic, func(topic string, payload []byte) {
-		// --- DEBUG log przychodzącej wiadomości ---
+		// --- DEBUG log for incoming message ---
 		logger.WithFields(logrus.Fields{
 			"topic":   topic,
 			"payload": string(payload),
-		}).Debug("📥 Otrzymano wiadomość na kolejce MQTT")
+		}).Debug("📥 Received MQTT message")
 
 		portID, ok := sw.ParseTopic(topic)
 		if !ok {
-			logger.WithField("topic", topic).Debug("📌 Ignorowany topic (nie SET)")
+			logger.WithField("topic", topic).Debug("📌 Ignored (not a SET command)")
 			return
 		}
 
-		// --- INFO: komenda typu portX/poe/set ---
+		// --- INFO: command of type portX/poe/set ---
 		logger.WithFields(logrus.Fields{
 			"port":    portID,
 			"payload": string(payload),
-		}).Info("⚡ Otrzymano komendę PoE")
+		}).Info("⚡ Received PoE command")
 
 		if swClient.HandlePoECommand(portID, string(payload), logger) {
 			stateTopic := fmt.Sprintf("%s/port%d/poe/state", config.BrokerTopic, portID)
@@ -84,13 +83,13 @@ func main() {
 		logger.Fatal(err)
 	}
 
-	// --- Goroutine: cykliczne sprawdzanie portów ---
+	// --- Goroutine: periodic port polling ---
 	go func() {
 		checkInterval := 5 * time.Second
 		ticker := time.NewTicker(checkInterval)
 		defer ticker.Stop()
 
-		// pierwszy Publish po subskrypcji
+		// initial publish after subscription
 		for _, port := range ports {
 			if port != nil {
 				publishPortValues(port, swClient, broker, config.BrokerTopic, logger)
@@ -98,7 +97,7 @@ func main() {
 		}
 
 		for range ticker.C {
-			logger.Debugf("Getting PoE ports status via HTTP...")
+			logger.Debugf("Fetching PoE ports status via HTTP...")
 
 			var err error
 			maxRetries := 10
@@ -106,7 +105,7 @@ func main() {
 			for i := 0; i < maxRetries; i++ {
 				ports, err = switchHTTPClient.GetPoEPorts(config.SwitchPortNumber)
 				if err == nil {
-					break // udało się pobrać porty
+					break
 				}
 
 				logger.Warnf(
@@ -114,6 +113,7 @@ func main() {
 					i+1,
 					maxRetries,
 				)
+
 				// reconnect
 				switchHTTPClient = switchhttp.NewSwitchClient(
 					config.SwitchURL,
@@ -139,12 +139,11 @@ func main() {
 				swClient.SetPort(port.ID, port)
 
 				if oldPort == nil {
-					// pierwszy odczyt, publikujemy wszystko
+					// initial read, publishing all ports
 					publishPortValues(port, swClient, broker, config.BrokerTopic, logger)
 					continue
 				}
 
-				// --- Sprawdzenie, które pola się zmieniły ---
 				if oldPort.Enabled != port.Enabled || oldPort.PowerOn != port.PowerOn {
 					logger.Infof(
 						"Port %d: Enabled=%t, PoE=%t, Class=%s, Power=%dmW, Voltage=%dmV, Current=%dmA",
@@ -180,7 +179,7 @@ func main() {
 			}
 		}
 	}()
-	// --- Koniec goroutine ---
+	// --- End of goroutine ---
 
 	// --- Graceful shutdown ---
 	sigChan := make(chan os.Signal, 1)

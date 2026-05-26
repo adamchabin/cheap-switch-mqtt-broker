@@ -7,38 +7,31 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// PoEHTTPClient jest interfejsem potrzebnym Switchowi do ustawiania PoE i pobierania stanu portów.
-// Dzięki temu switchpkg nie importuje switchhttp i nie tworzy cyklu.
 type PoEHTTPClient interface {
 	SetPoE(portID int, enable bool) error
 }
 
-// Switch reprezentuje przełącznik z portami PoE.
 type Switch struct {
 	Ports map[int]*Port
 	mu    sync.Mutex
 	HTTP  PoEHTTPClient
 }
 
-// Port opisuje pojedynczy port przełącznika.
 type Port struct {
-	ID      int
-	Enabled bool
-	PowerOn bool
-	Class   string
-	Stats   *PoEStats
-	// dodajemy to pole do śledzenia ostatniego stanu MQTT
+	ID                 int
+	Enabled            bool
+	PowerOn            bool
+	Class              string
+	Stats              *PoEStats
 	LastPublishedState string
 }
 
-// PoEStats przechowuje wartości mocy, napięcia i prądu portu w jednostkach mW, mV, mA.
 type PoEStats struct {
 	Power_mW   int
 	Voltage_mV int
 	Current_mA int
 }
 
-// NewSwitch tworzy nowy obiekt Switch z podaną liczbą portów i klientem HTTP.
 func NewSwitch(numPorts int, httpClient PoEHTTPClient) *Switch {
 	s := &Switch{
 		Ports: make(map[int]*Port),
@@ -50,15 +43,13 @@ func NewSwitch(numPorts int, httpClient PoEHTTPClient) *Switch {
 	return s
 }
 
-// HandlePoECommand włącza lub wyłącza PoE na danym porcie.
-// Zwraca true jeśli operacja się powiodła.
 func (s *Switch) HandlePoECommand(portID int, payload string, logger *logrus.Logger) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	p, ok := s.Ports[portID]
 	if !ok {
-		logger.WithField("port", portID).Warn("⚠️ Nieznany port")
+		logger.WithField("port", portID).Warn("⚠️ Unknown port")
 		return false
 	}
 
@@ -69,35 +60,31 @@ func (s *Switch) HandlePoECommand(portID int, payload string, logger *logrus.Log
 	case "OFF":
 		enable = false
 	default:
-		logger.WithFields(map[string]interface{}{"port": portID, "payload": payload}).Warn("⚠️ Nieznana komenda PoE")
+		logger.WithFields(map[string]interface{}{"port": portID, "payload": payload}).Warn("⚠️ Unknown PoE command")
 		return false
 	}
 
-	// --- Nowość: jeśli stan się nie zmienił, nic nie robimy ---
 	if p.Enabled == enable {
 		return false
 	}
 
-	// Wywołanie HTTP do switcha poprzez interfejs
 	if s.HTTP != nil {
 		if err := s.HTTP.SetPoE(portID-1, enable); err != nil {
-			logger.WithFields(map[string]interface{}{"port": portID, "error": err}).Error("Błąd HTTP przy ustawianiu PoE")
+			logger.WithFields(map[string]interface{}{"port": portID, "error": err}).Error("HTTP error while setting PoE")
 			return false
 		}
 	}
 
-	// Aktualizacja stanu w pamięci
 	p.Enabled = enable
 	if enable {
-		logger.WithField("port", portID).Info("🔌 PoE włączone")
+		logger.WithField("port", portID).Info("🔌 PoE enabled")
 	} else {
-		logger.WithField("port", portID).Info("❌ PoE wyłączone")
+		logger.WithField("port", portID).Info("❌ PoE disabled")
 	}
 
 	return true
 }
 
-// GetPortState zwraca "ON", "OFF" lub "UNKNOWN" w zależności od stanu portu.
 func (s *Switch) GetPortState(portID int) string {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -112,7 +99,6 @@ func (s *Switch) GetPortState(portID int) string {
 	return "OFF"
 }
 
-// ParseTopic wyciąga numer portu z topicu typu dom/switch1/port{n}/poe/set
 func ParseTopic(topic string) (portID int, ok bool) {
 	var n int
 	_, err := fmt.Sscanf(topic, "dom/switch1/port%d/poe/set", &n)
